@@ -1,0 +1,705 @@
+#!/usr/bin/env python3
+"""
+Extensions and Plugins for MEL
+Examples of extensions to add functionalities
+"""
+
+import os
+import json
+import datetime
+import smtplib
+import sqlite3
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
+from pathlib import Path
+from typing import Dict, List, Optional
+import pandas as pd
+import matplotlib.pyplot as plt
+from loguru import logger
+
+# ==========================
+# 📧 Email Extension
+# ==========================
+
+class EmailExtension:
+    """Extension for managing emails"""
+    
+    def __init__(self, config: Dict):
+        self.smtp_server = config.get('smtp_server', 'smtp.gmail.com')
+        self.smtp_port = config.get('smtp_port', 587)
+        self.email = config.get('email')
+        self.password = config.get('password')
+        
+    def send_email(self, to: str, subject: str, body: str) -> bool:
+        """Send an email"""
+        try:
+            msg = MIMEMultipart()
+            msg['From'] = self.email
+            msg['To'] = to
+            msg['Subject'] = subject
+            
+            msg.attach(MIMEText(body, 'plain'))
+            
+            server = smtplib.SMTP(self.smtp_server, self.smtp_port)
+            server.starttls()
+            server.login(self.email, self.password)
+            
+            text = msg.as_string()
+            server.sendmail(self.email, to, text)
+            server.quit()
+            
+            logger.info(f"Email sent to {to}")
+            return True
+            
+        except Exception as e:
+            logger.error(f"Email sending error: {e}")
+            return False
+            
+    def check_emails(self) -> List[Dict]:
+        """Check for new emails"""
+        # To implement with IMAP
+        return []
+
+# ==========================
+# 📅 Calendar Extension
+# ==========================
+
+class CalendarExtension:
+    """Extension for managing calendar and reminders"""
+    
+    def __init__(self, db_path: Path):
+        self.db_path = db_path
+        self._init_database()
+        
+    def _init_database(self):
+        """Initialize the database"""
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+        
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS events (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                title TEXT NOT NULL,
+                description TEXT,
+                datetime TEXT NOT NULL,
+                reminder_minutes INTEGER DEFAULT 15,
+                completed BOOLEAN DEFAULT 0
+            )
+        ''')
+        
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS reminders (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                message TEXT NOT NULL,
+                datetime TEXT NOT NULL,
+                recurring TEXT,
+                active BOOLEAN DEFAULT 1
+            )
+        ''')
+        
+        conn.commit()
+        conn.close()
+        
+    def add_event(self, title: str, datetime_str: str, description: str = "", reminder: int = 15) -> int:
+        """Add an event"""
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+        
+        cursor.execute('''
+            INSERT INTO events (title, description, datetime, reminder_minutes)
+            VALUES (?, ?, ?, ?)
+        ''', (title, description, datetime_str, reminder))
+        
+        event_id = cursor.lastrowid
+        conn.commit()
+        conn.close()
+        
+        logger.info(f"Event created: {title}")
+        return event_id
+        
+    def get_today_events(self) -> List[Dict]:
+        """Get today's events"""
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+        
+        today = datetime.date.today()
+        cursor.execute('''
+            SELECT * FROM events 
+            WHERE date(datetime) = date(?)
+            AND completed = 0
+            ORDER BY datetime
+        ''', (today,))
+        
+        events = []
+        for row in cursor.fetchall():
+            events.append({
+                'id': row[0],
+                'title': row[1],
+                'description': row[2],
+                'datetime': row[3],
+                'reminder_minutes': row[4]
+            })
+            
+        conn.close()
+        return events
+        
+    def add_reminder(self, message: str, datetime_str: str, recurring: Optional[str] = None) -> int:
+        """Add a reminder"""
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+        
+        cursor.execute('''
+            INSERT INTO reminders (message, datetime, recurring)
+            VALUES (?, ?, ?)
+        ''', (message, datetime_str, recurring))
+        
+        reminder_id = cursor.lastrowid
+        conn.commit()
+        conn.close()
+        
+        return reminder_id
+        
+    def get_pending_reminders(self) -> List[Dict]:
+        """Get pending reminders"""
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+        
+        now = datetime.datetime.now()
+        cursor.execute('''
+            SELECT * FROM reminders 
+            WHERE datetime <= ? 
+            AND active = 1
+        ''', (now,))
+        
+        reminders = []
+        for row in cursor.fetchall():
+            reminders.append({
+                'id': row[0],
+                'message': row[1],
+                'datetime': row[2],
+                'recurring': row[3]
+            })
+            
+        conn.close()
+        return reminders
+
+# ==========================
+# 🏠 Smart Home Extension
+# ==========================
+
+class SmartHomeExtension:
+    """Extension for home automation"""
+    
+    def __init__(self, config: Dict):
+        self.devices = config.get('devices', {})
+        self.api_key = config.get('api_key')
+        self.bridge_ip = config.get('bridge_ip')
+        
+    def control_light(self, room: str, action: str, brightness: Optional[int] = None) -> bool:
+        """Control lights"""
+        device = self.devices.get(f"{room}_light")
+        
+        if not device:
+            logger.warning(f"Light not found: {room}")
+            return False
+            
+        # Example with Philips Hue
+        # To implement with real API
+        logger.info(f"Light {room}: {action}")
+        return True
+        
+    def set_temperature(self, temperature: float) -> bool:
+        """Set temperature"""
+        # To implement with your thermostat
+        logger.info(f"Temperature set to {temperature}°C")
+        return True
+        
+    def get_sensor_data(self) -> Dict:
+        """Get sensor data"""
+        return {
+            'temperature': 22.5,
+            'humidity': 45,
+            'co2': 400,
+            'presence': True
+        }
+
+# ==========================
+# 📊 Productivity Extension
+# ==========================
+
+class ProductivityExtension:
+    """Extension for productivity and analysis"""
+    
+    def __init__(self, data_path: Path):
+        self.data_path = data_path
+        self.activity_log = []
+        
+    def start_focus_session(self, duration_minutes: int, task: str) -> None:
+        """Start a focus session"""
+        session = {
+            'start': datetime.datetime.now(),
+            'duration': duration_minutes,
+            'task': task,
+            'interruptions': 0
+        }
+        
+        self.activity_log.append(session)
+        logger.info(f"Focus session started: {task} ({duration_minutes}min)")
+        
+        # Block distractions
+        self._block_distracting_apps()
+        
+    def _block_distracting_apps(self):
+        """Block distracting applications"""
+        distracting_apps = ['discord', 'telegram', 'whatsapp']
+        # To implement according to OS
+        pass
+        
+    def generate_productivity_report(self) -> str:
+        """Generate productivity report"""
+        if not self.activity_log:
+            return "No productivity data available"
+            
+        df = pd.DataFrame(self.activity_log)
+        
+        # Analysis
+        total_time = sum(session['duration'] for session in self.activity_log)
+        avg_session = total_time / len(self.activity_log)
+        
+        # Chart
+        plt.figure(figsize=(10, 6))
+        tasks = df.groupby('task')['duration'].sum()
+        tasks.plot(kind='bar')
+        plt.title('Time per Task')
+        plt.xlabel('Task')
+        plt.ylabel('Minutes')
+        
+        report_path = self.data_path / f"productivity_report_{datetime.date.today()}.png"
+        plt.savefig(report_path)
+        plt.close()
+        
+        report = f"""
+        Productivity Report - {datetime.date.today()}
+        
+        Total sessions: {len(self.activity_log)}
+        Total time: {total_time} minutes
+        Average duration: {avg_session:.1f} minutes
+        
+        Chart saved: {report_path}
+        """
+        
+        return report
+
+# ==========================
+# 👨‍💻 Development Extension
+# ==========================
+
+class DevelopmentExtension:
+    """Extension for developers"""
+    
+    def __init__(self, workspace_path: Path):
+        self.workspace = workspace_path
+        
+    def create_project(self, name: str, template: str = "python") -> Path:
+        """Create a new project"""
+        project_path = self.workspace / name
+        project_path.mkdir(exist_ok=True)
+        
+        templates = {
+            'python': self._create_python_project,
+            'web': self._create_web_project,
+            'react': self._create_react_project
+        }
+        
+        creator = templates.get(template, self._create_python_project)
+        creator(project_path)
+        
+        # Initialize Git
+        os.system(f"cd {project_path} && git init")
+        
+        logger.info(f"Project created: {name} ({template})")
+        return project_path
+        
+    def _create_python_project(self, path: Path):
+        """Create Python project structure"""
+        # Structure
+        (path / "src").mkdir(exist_ok=True)
+        (path / "tests").mkdir(exist_ok=True)
+        (path / "docs").mkdir(exist_ok=True)
+        
+        # Files
+        with open(path / "README.md", 'w') as f:
+            f.write(f"# {path.name}\n\nProject description\n")
+            
+        with open(path / "requirements.txt", 'w') as f:
+            f.write("# Project dependencies\n")
+            
+        with open(path / ".gitignore", 'w') as f:
+            f.write("__pycache__/\n*.pyc\n.env\nvenv/\n")
+            
+        with open(path / "src" / "__init__.py", 'w') as f:
+            f.write("")
+            
+        with open(path / "src" / "main.py", 'w') as f:
+            f.write('#!/usr/bin/env python3\n"""Main module"""\n\ndef main():\n    pass\n\nif __name__ == "__main__":\n    main()\n')
+            
+    def _create_web_project(self, path: Path):
+        """Create web project structure"""
+        (path / "css").mkdir(exist_ok=True)
+        (path / "js").mkdir(exist_ok=True)
+        (path / "img").mkdir(exist_ok=True)
+        
+        with open(path / "index.html", 'w') as f:
+            f.write('''<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>New Project</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <h1>Welcome</h1>
+    <script src="js/main.js"></script>
+</body>
+</html>''')
+            
+    def _create_react_project(self, path: Path):
+        """Create React project"""
+        os.system(f"npx create-react-app {path}")
+        
+    def run_code_analysis(self, file_path: Path) -> Dict:
+        """Analyze code"""
+        # Use pylint, flake8, etc.
+        results = {
+            'lines': 0,
+            'functions': 0,
+            'classes': 0,
+            'complexity': 0
+        }
+        
+        if file_path.suffix == '.py':
+            with open(file_path, 'r') as f:
+                content = f.read()
+                results['lines'] = len(content.splitlines())
+                results['functions'] = content.count('def ')
+                results['classes'] = content.count('class ')
+                
+        return results
+
+# ==========================
+# 🔐 Security Extension
+# ==========================
+
+class SecurityExtension:
+    """Extension for security and privacy"""
+    
+    def __init__(self, config: Dict):
+        self.encryption_key = config.get('encryption_key')
+        self.secure_folder = Path(config.get('secure_folder', '~/.mel/secure')).expanduser()
+        self.secure_folder.mkdir(exist_ok=True)
+        
+    def lock_screen(self):
+        """Lock the screen"""
+        if os.name == 'nt':  # Windows
+            os.system('rundll32.exe user32.dll,LockWorkStation')
+        elif os.name == 'posix':  # Linux/Mac
+            os.system('gnome-screensaver-command -l')  # GNOME
+            # or os.system('xdg-screensaver lock')  # Generic
+            
+    def secure_delete(self, file_path: Path) -> bool:
+        """Secure file deletion"""
+        try:
+            # Overwrite with random data
+            if file_path.exists():
+                size = file_path.stat().st_size
+                with open(file_path, 'ba+', buffering=0) as f:
+                    for _ in range(3):  # 3 passes
+                        f.seek(0)
+                        f.write(os.urandom(size))
+                        
+                file_path.unlink()
+                logger.info(f"Secure deletion: {file_path}")
+                return True
+                
+        except Exception as e:
+            logger.error(f"Secure deletion error: {e}")
+            return False
+            
+    def create_backup(self, source: Path, encrypted: bool = True) -> Path:
+        """Create a backup"""
+        timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+        backup_name = f"backup_{source.name}_{timestamp}"
+        
+        if encrypted:
+            backup_name += ".enc"
+            
+        backup_path = self.secure_folder / backup_name
+        
+        # To implement: compression and encryption
+        logger.info(f"Backup created: {backup_path}")
+        return backup_path
+
+# ==========================
+# 🔧 Extension Manager
+# ==========================
+
+class ExtensionManager:
+    """Central extension manager"""
+    
+    def __init__(self, mel_instance):
+        self.mel = mel_instance
+        self.extensions = {}
+        self._load_extensions()
+        
+    def _load_extensions(self):
+        """Load configured extensions"""
+        # Email
+        if (self.mel.config.BASE_DIR / "email_config.json").exists():
+            self.extensions['email'] = EmailExtension({})
+            
+        # Calendar
+        calendar_db = self.mel.config.BASE_DIR / "calendar.db"
+        self.extensions['calendar'] = CalendarExtension(calendar_db)
+        
+        # Smart Home
+        self.extensions['smart_home'] = SmartHomeExtension({})
+        
+        # Productivity
+        self.extensions['productivity'] = ProductivityExtension(
+            self.mel.config.BASE_DIR / "data"
+        )
+        
+        # Development
+        workspace = Path.home() / "MEL_Projects"
+        workspace.mkdir(exist_ok=True)
+        self.extensions['development'] = DevelopmentExtension(workspace)
+        
+        # Security
+        self.extensions['security'] = SecurityExtension({
+            'secure_folder': self.mel.config.BASE_DIR / "secure"
+        })
+        
+    def get_extension(self, name: str):
+        """Get an extension"""
+        return self.extensions.get(name)
+        
+    def register_extension(self, name: str, extension):
+        """Register a new extension"""
+        self.extensions[name] = extension
+        logger.info(f"Extension registered: {name}")
+
+# ==========================
+# 🎯 Extension Commands
+# ==========================
+
+def register_extension_commands(mel_instance):
+    """Register extension commands"""
+    
+    # Email
+    @mel_instance.command("send an email")
+    def send_email_command(entities, context):
+        email_ext = mel_instance.extensions.get('email')
+        if email_ext:
+            # Parse recipient and content
+            return email_ext.send_email(
+                to="recipient@example.com",
+                subject="Email from MEL",
+                body="Email content"
+            )
+            
+    # Calendar
+    @mel_instance.command("add an event")
+    def add_event_command(entities, context):
+        calendar_ext = mel_instance.extensions.get('calendar')
+        if calendar_ext:
+            return calendar_ext.add_event(
+                title="New event",
+                datetime_str=datetime.datetime.now().isoformat()
+            )
+            
+    # Smart Home
+    @mel_instance.command("turn on the light")
+    def light_on_command(entities, context):
+        smart_home = mel_instance.extensions.get('smart_home')
+        if smart_home:
+            room = entities.get('room', 'living_room')
+            return smart_home.control_light(room, 'on')
+            
+    # Productivity
+    @mel_instance.command("focus mode")
+    def focus_mode_command(entities, context):
+        productivity = mel_instance.extensions.get('productivity')
+        if productivity:
+            duration = entities.get('duration', 25)
+            return productivity.start_focus_session(duration, "Work")
+            
+    # Development
+    @mel_instance.command("create a project")
+    def create_project_command(entities, context):
+        dev_ext = mel_instance.extensions.get('development')
+        if dev_ext:
+            name = entities.get('project_name', 'new_project')
+            template = entities.get('template', 'python')
+            return dev_ext.create_project(name, template)
+            
+    # Security
+    @mel_instance.command("lock the screen")
+    def lock_screen_command(entities, context):
+        security = mel_instance.extensions.get('security')
+        if security:
+            return security.lock_screen()
+
+# ==========================
+# 🧩 Plugin Template
+# ==========================
+
+class MELPlugin:
+    """Base class for MEL plugins"""
+    
+    def __init__(self, name: str, version: str = "1.0.0"):
+        self.name = name
+        self.version = version
+        self.commands = {}
+        
+    def register_command(self, trigger: str, handler):
+        """Register a command"""
+        self.commands[trigger] = handler
+        
+    def on_load(self, mel_instance):
+        """Called when plugin is loaded"""
+        pass
+        
+    def on_unload(self):
+        """Called when plugin is unloaded"""
+        pass
+
+# ==========================
+# 🌤️ Example Custom Plugin
+# ==========================
+
+class WeatherPlugin(MELPlugin):
+    """Weather plugin for MEL"""
+    
+    def __init__(self):
+        super().__init__("Weather", "1.0.0")
+        self.api_key = "YOUR_API_KEY"
+        
+    def on_load(self, mel_instance):
+        """Initialization"""
+        self.register_command("what's the weather", self.get_weather)
+        self.register_command("weather forecast", self.get_forecast)
+        
+    def get_weather(self, entities, context):
+        """Get current weather"""
+        city = entities.get('city', 'New York')
+        # Weather API call
+        return f"It's 68°F and sunny in {city}"
+        
+    def get_forecast(self, entities, context):
+        """Get weather forecast"""
+        return "Tomorrow's forecast: cloudy with 65°F"
+
+# ==========================
+# 📱 Social Media Plugin
+# ==========================
+
+class SocialMediaPlugin(MELPlugin):
+    """Social media integration plugin"""
+    
+    def __init__(self):
+        super().__init__("SocialMedia", "1.0.0")
+        
+    def on_load(self, mel_instance):
+        self.register_command("post to twitter", self.post_tweet)
+        self.register_command("check notifications", self.check_notifications)
+        
+    def post_tweet(self, entities, context):
+        """Post a tweet"""
+        content = entities.get('content', 'Hello from MEL!')
+        # Twitter API integration
+        logger.info(f"Tweet posted: {content}")
+        return f"Tweet posted: {content}"
+        
+    def check_notifications(self, entities, context):
+        """Check social media notifications"""
+        # Check multiple platforms
+        return "You have 3 new notifications on Twitter, 1 on Instagram"
+
+# ==========================
+# 🎵 Music Plugin
+# ==========================
+
+class MusicPlugin(MELPlugin):
+    """Music control plugin"""
+    
+    def __init__(self):
+        super().__init__("Music", "1.0.0")
+        
+    def on_load(self, mel_instance):
+        self.register_command("play music", self.play_music)
+        self.register_command("pause music", self.pause_music)
+        self.register_command("skip song", self.skip_song)
+        self.register_command("set volume", self.set_volume)
+        
+    def play_music(self, entities, context):
+        """Play music"""
+        song = entities.get('song')
+        artist = entities.get('artist')
+        
+        if song and artist:
+            # Spotify/Apple Music integration
+            return f"Playing {song} by {artist}"
+        else:
+            return "Playing your favorite playlist"
+            
+    def pause_music(self, entities, context):
+        """Pause music"""
+        return "Music paused"
+        
+    def skip_song(self, entities, context):
+        """Skip current song"""
+        return "Skipping to next song"
+        
+    def set_volume(self, entities, context):
+        """Set volume"""
+        volume = entities.get('volume', 50)
+        return f"Volume set to {volume}%"
+
+# ==========================
+# 🛒 Shopping Plugin
+# ==========================
+
+class ShoppingPlugin(MELPlugin):
+    """Shopping and e-commerce plugin"""
+    
+    def __init__(self):
+        super().__init__("Shopping", "1.0.0")
+        self.shopping_list = []
+        
+    def on_load(self, mel_instance):
+        self.register_command("add to shopping list", self.add_to_list)
+        self.register_command("show shopping list", self.show_list)
+        self.register_command("order from amazon", self.amazon_order)
+        
+    def add_to_list(self, entities, context):
+        """Add item to shopping list"""
+        item = entities.get('item')
+        if item:
+            self.shopping_list.append(item)
+            return f"Added {item} to shopping list"
+        return "What would you like to add?"
+        
+    def show_list(self, entities, context):
+        """Show shopping list"""
+        if not self.shopping_list:
+            return "Your shopping list is empty"
+        
+        list_str = "\n".join([f"• {item}" for item in self.shopping_list])
+        return f"Shopping list:\n{list_str}"
+        
+    def amazon_order(self, entities, context):
+        """Order from Amazon"""
+        item = entities.get('item')
+        # Amazon API integration
+        return f"Searching for {item} on Amazon..."
