@@ -1,0 +1,656 @@
+# ⚙️ Configuration Files for MEL
+
+## 1. 📋 settings.yaml - Personal Configuration
+
+```yaml
+# MEL Configuration
+# Modify these parameters according to your preferences
+
+# Voice settings
+LANGUAGE: "en-US"
+WAKE_WORD: "mel"
+VOICE_RATE: 180
+VOICE_VOLUME: 0.9
+
+# System settings
+CONFIDENCE_THRESHOLD: 0.7
+TIMEOUT_LISTENING: 5
+MAX_RETRIES: 3
+SAFE_MODE: true
+
+# Favorite applications
+favorite_apps:
+  - chrome
+  - spotify
+  - vscode
+  - discord
+
+# Important folders
+important_folders:
+  documents: "~/Documents"
+  downloads: "~/Downloads"
+  projects: "~/Projects"
+  desktop: "~/Desktop"
+
+# Automations
+automations:
+  morning_routine:
+    - open: chrome
+    - open: spotify
+    - check: emails
+    - show: weather
+    
+  work_mode:
+    - close: discord
+    - close: spotify
+    - open: vscode
+    - open: teams
+```
+
+## 2. 🎯 commands.json - Custom Commands
+
+```json
+{
+  "custom_commands": {
+    "hello mel": {
+      "responses": [
+        "Hello! How can I help you today?",
+        "Hi! What are we working on today?",
+        "Hello! I'm ready to assist you!"
+      ],
+      "action": "greeting"
+    },
+    
+    "work mode": {
+      "responses": ["Activating work mode"],
+      "action": "automation",
+      "automation_name": "work_mode"
+    },
+    
+    "morning routine": {
+      "responses": ["Starting your morning routine"],
+      "action": "automation",
+      "automation_name": "morning_routine"
+    },
+    
+    "clean my desktop": {
+      "responses": ["I'll organize your desktop"],
+      "action": "cleanup_desktop"
+    },
+    
+    "system report": {
+      "responses": ["Generating a complete system report"],
+      "action": "system_report"
+    },
+    
+    "presentation mode": {
+      "responses": ["Presentation mode activated"],
+      "action": "presentation_mode"
+    }
+  },
+  
+  "aliases": {
+    "open google": "open chrome",
+    "play music": "open spotify",
+    "shut down computer": "shutdown system",
+    "show my emails": "open gmail"
+  },
+  
+  "shortcuts": {
+    "copy": "ctrl+c",
+    "paste": "ctrl+v",
+    "undo": "ctrl+z",
+    "save": "ctrl+s",
+    "close": "alt+f4"
+  }
+}
+```
+
+## 3. 🚀 startup.py - Simplified Startup Script
+
+```python
+#!/usr/bin/env python3
+"""
+Simplified startup script for MEL
+"""
+
+import os
+import sys
+import subprocess
+from pathlib import Path
+
+def check_dependencies():
+    """Check dependencies"""
+    required = [
+        'speech_recognition',
+        'pyttsx3',
+        'nltk',
+        'psutil',
+        'pyautogui'
+    ]
+    
+    missing = []
+    for module in required:
+        try:
+            __import__(module)
+        except ImportError:
+            missing.append(module)
+    
+    if missing:
+        print(f"⚠️  Missing modules: {', '.join(missing)}")
+        print("Install them with: pip install " + ' '.join(missing))
+        return False
+    
+    return True
+
+def setup_mel_directories():
+    """Create MEL directories"""
+    mel_dir = Path.home() / '.mel'
+    dirs = ['logs', 'data', 'scripts', 'backups']
+    
+    for d in dirs:
+        (mel_dir / d).mkdir(parents=True, exist_ok=True)
+    
+    print("✅ MEL directories created")
+
+def start_mel():
+    """Start MEL"""
+    print("""
+    ╔═══════════════════════════════════════╗
+    ║      MEL - Vocal AI Assistant         ║
+    ║         Starting up...                ║
+    ╚═══════════════════════════════════════╝
+    """)
+    
+    # Check dependencies
+    if not check_dependencies():
+        sys.exit(1)
+    
+    # Create directories
+    setup_mel_directories()
+    
+    # Start MEL
+    try:
+        from mel import main
+        main()
+    except ImportError:
+        print("❌ Error: mel.py not found")
+        sys.exit(1)
+
+if __name__ == "__main__":
+    start_mel()
+```
+
+## 4. 📖 mel_commands.md - Commands Guide
+
+```markdown
+# MEL Commands Guide
+
+## Basic Commands
+
+### Applications
+- "Mel, open Chrome"
+- "Mel, close Spotify"
+- "Mel, launch Visual Studio Code"
+
+### Web Search
+- "Mel, search tomorrow's weather"
+- "Mel, find latest news"
+- "Mel, look up pizza recipes"
+
+### System
+- "Mel, what time is it?"
+- "Mel, what's the battery level?"
+- "Mel, how much RAM is being used?"
+
+## Advanced Commands
+
+### Files and Folders
+- "Mel, create a folder called Project2025"
+- "Mel, open the Documents folder"
+- "Mel, take a screenshot"
+
+### Automation
+- "Mel, activate work mode"
+- "Mel, start my morning routine"
+- "Mel, set a reminder in 30 minutes"
+
+### Content Creation
+- "Mel, create a text file with my notes"
+- "Mel, write an email saying I'll be late"
+
+## Complex Commands
+
+### Multi-step Workflows
+- "Mel, close all games, open VSCode and Chrome, and play focus music"
+- "Mel, generate a complete system report and email it"
+- "Mel, organize my downloads by file type"
+
+### Conditional Commands
+- "Mel, if battery is below 20%, activate power saving mode"
+- "Mel, check my emails and tell me if there's anything urgent"
+
+## Customization
+
+### Create Your Own Commands
+Edit the `~/.mel/commands.json` file to add your custom commands.
+
+### Customization Examples
+```json
+"coffee break": {
+  "responses": ["Time for a break!"],
+  "action": "automation",
+  "steps": [
+    {"lock": "screen"},
+    {"reminder": "10 minutes"},
+    {"play": "relaxing music"}
+  ]
+}
+```
+```
+
+## 5. 🛠️ install_mel.sh - Complete Installation Script
+
+```bash
+#!/bin/bash
+# MEL installation script for Linux/Mac
+
+echo "======================================"
+echo "     MEL Installation"
+echo "======================================"
+
+# Check Python
+if ! command -v python3 &> /dev/null; then
+    echo "❌ Python 3 is not installed"
+    exit 1
+fi
+
+# Create virtual environment
+echo "📦 Creating virtual environment..."
+python3 -m venv mel_env
+source mel_env/bin/activate
+
+# Install system dependencies
+if [[ "$OSTYPE" == "linux-gnu"* ]]; then
+    echo "🐧 Installing Linux dependencies..."
+    sudo apt-get update
+    sudo apt-get install -y portaudio19-dev python3-pyaudio
+    sudo apt-get install -y espeak ffmpeg
+elif [[ "$OSTYPE" == "darwin"* ]]; then
+    echo "🍎 Installing macOS dependencies..."
+    brew install portaudio
+    brew install ffmpeg
+fi
+
+# Install Python modules
+echo "🐍 Installing Python modules..."
+pip install --upgrade pip
+
+# Essential modules
+pip install SpeechRecognition==3.10.0
+pip install pyttsx3==2.90
+pip install pyaudio==0.2.13
+pip install nltk==3.8.1
+pip install spacy==3.7.2
+pip install psutil==5.9.6
+pip install pyautogui==0.9.54
+pip install keyboard==0.13.5
+pip install loguru==0.7.2
+pip install pyyaml==6.0.1
+pip install requests==2.31.0
+pip install numpy==1.26.2
+pip install pandas==2.1.4
+pip install schedule==1.2.0
+
+# Download models
+echo "📚 Downloading language models..."
+python -c "import nltk; nltk.download(['punkt', 'stopwords', 'averaged_perceptron_tagger'])"
+python -m spacy download en_core_web_sm
+
+# Create structure
+echo "📁 Creating MEL structure..."
+mkdir -p ~/.mel/{logs,data,scripts,backups}
+
+# Copy files
+echo "📄 Copying configuration files..."
+cp settings.yaml ~/.mel/
+cp commands.json ~/.mel/
+
+# Create alias
+echo "🔗 Creating 'mel' alias..."
+echo "alias mel='source ~/mel_env/bin/activate && python ~/mel.py'" >> ~/.bashrc
+
+echo ""
+echo "✅ Installation completed!"
+echo ""
+echo "To start MEL:"
+echo "1. source mel_env/bin/activate"
+echo "2. python mel.py"
+echo ""
+echo "Or simply use: mel"
+```
+
+## 6. 🧪 test_mel.py - Test Script
+
+```python
+#!/usr/bin/env python3
+"""
+Test script to verify MEL installation
+"""
+
+import sys
+from colorama import init, Fore, Style
+
+init(autoreset=True)
+
+def test_import(module_name, friendly_name=None):
+    """Test module import"""
+    name = friendly_name or module_name
+    try:
+        __import__(module_name)
+        print(f"{Fore.GREEN}✓ {name}")
+        return True
+    except ImportError as e:
+        print(f"{Fore.RED}✗ {name}: {e}")
+        return False
+
+def test_microphone():
+    """Test microphone"""
+    try:
+        import speech_recognition as sr
+        r = sr.Recognizer()
+        with sr.Microphone() as source:
+            r.adjust_for_ambient_noise(source, duration=0.5)
+        print(f"{Fore.GREEN}✓ Microphone detected")
+        return True
+    except Exception as e:
+        print(f"{Fore.RED}✗ Microphone: {e}")
+        return False
+
+def test_tts():
+    """Test text-to-speech"""
+    try:
+        import pyttsx3
+        engine = pyttsx3.init()
+        print(f"{Fore.GREEN}✓ Text-to-speech available")
+        return True
+    except Exception as e:
+        print(f"{Fore.RED}✗ Text-to-speech: {e}")
+        return False
+
+def main():
+    print(f"\n{Fore.CYAN}{'='*40}")
+    print(f"{Fore.CYAN}     MEL Installation Test")
+    print(f"{Fore.CYAN}{'='*40}\n")
+    
+    tests = [
+        ("speech_recognition", "Speech Recognition"),
+        ("pyttsx3", "Text-to-Speech"),
+        ("pyaudio", "PyAudio"),
+        ("nltk", "NLTK"),
+        ("spacy", "spaCy"),
+        ("psutil", "PSUtil"),
+        ("pyautogui", "PyAutoGUI"),
+        ("keyboard", "Keyboard"),
+        ("loguru", "Loguru"),
+        ("yaml", "PyYAML"),
+        ("requests", "Requests"),
+        ("numpy", "NumPy"),
+        ("pandas", "Pandas"),
+        ("schedule", "Schedule")
+    ]
+    
+    print(f"{Style.BRIGHT}Python Modules:")
+    success_count = sum(test_import(mod, name) for mod, name in tests)
+    
+    print(f"\n{Style.BRIGHT}Hardware:")
+    if test_microphone():
+        success_count += 1
+    if test_tts():
+        success_count += 1
+    
+    total = len(tests) + 2
+    print(f"\n{Fore.CYAN}{'='*40}")
+    print(f"Result: {success_count}/{total} tests passed")
+    
+    if success_count == total:
+        print(f"{Fore.GREEN}✅ MEL is ready to start!")
+    else:
+        print(f"{Fore.YELLOW}⚠️  Some components are missing")
+        print(f"Run: pip install -r requirements.txt")
+    
+    print(f"{Fore.CYAN}{'='*40}\n")
+
+if __name__ == "__main__":
+    main()
+```
+
+## 7. 🐧 mel.service - Systemd Service (Linux)
+
+```ini
+[Unit]
+Description=MEL - Vocal AI Assistant
+After=network.target sound.target
+
+[Service]
+Type=simple
+User=%i
+WorkingDirectory=/home/%i
+Environment="PATH=/home/%i/mel_env/bin"
+ExecStart=/home/%i/mel_env/bin/python /home/%i/mel.py
+Restart=on-failure
+RestartSec=10
+
+[Install]
+WantedBy=default.target
+```
+
+To install the service:
+```bash
+sudo cp mel.service /etc/systemd/system/mel@.service
+sudo systemctl enable mel@$USER
+sudo systemctl start mel@$USER
+```
+
+## 8. 🪟 install_mel.bat - Windows Installation Script
+
+```batch
+@echo off
+echo ======================================
+echo      MEL Installation (Windows)
+echo ======================================
+
+:: Check Python
+python --version >nul 2>&1
+if errorlevel 1 (
+    echo ❌ Python is not installed or not in PATH
+    echo Please install Python from: https://python.org
+    pause
+    exit /b 1
+)
+
+:: Create virtual environment
+echo 📦 Creating virtual environment...
+python -m venv mel_env
+call mel_env\Scripts\activate.bat
+
+:: Install Python modules
+echo 🐍 Installing Python modules...
+python -m pip install --upgrade pip
+
+:: Essential modules
+pip install SpeechRecognition==3.10.0
+pip install pyttsx3==2.90
+pip install pyaudio==0.2.13
+pip install nltk==3.8.1
+pip install spacy==3.7.2
+pip install psutil==5.9.6
+pip install pyautogui==0.9.54
+pip install keyboard==0.13.5
+pip install loguru==0.7.2
+pip install pyyaml==6.0.1
+pip install requests==2.31.0
+pip install numpy==1.26.2
+pip install pandas==2.1.4
+pip install schedule==1.2.0
+pip install pywin32==306
+
+:: Download models
+echo 📚 Downloading language models...
+python -c "import nltk; nltk.download(['punkt', 'stopwords', 'averaged_perceptron_tagger'])"
+python -m spacy download en_core_web_sm
+
+:: Create structure
+echo 📁 Creating MEL structure...
+mkdir %USERPROFILE%\.mel\logs
+mkdir %USERPROFILE%\.mel\data
+mkdir %USERPROFILE%\.mel\scripts
+mkdir %USERPROFILE%\.mel\backups
+
+:: Copy files
+echo 📄 Copying configuration files...
+copy settings.yaml %USERPROFILE%\.mel\
+copy commands.json %USERPROFILE%\.mel\
+
+echo.
+echo ✅ Installation completed!
+echo.
+echo To start MEL:
+echo 1. mel_env\Scripts\activate.bat
+echo 2. python mel.py
+echo.
+pause
+```
+
+## 9. 🎛️ mel_config.py - Configuration Manager
+
+```python
+#!/usr/bin/env python3
+"""
+MEL Configuration Manager
+"""
+
+import yaml
+import json
+from pathlib import Path
+from typing import Dict, Any
+
+class MelConfig:
+    def __init__(self):
+        self.config_dir = Path.home() / '.mel'
+        self.settings_file = self.config_dir / 'settings.yaml'
+        self.commands_file = self.config_dir / 'commands.json'
+        
+        self.settings = self._load_settings()
+        self.commands = self._load_commands()
+    
+    def _load_settings(self) -> Dict[str, Any]:
+        """Load settings from YAML"""
+        if self.settings_file.exists():
+            with open(self.settings_file, 'r', encoding='utf-8') as f:
+                return yaml.safe_load(f)
+        return self._default_settings()
+    
+    def _load_commands(self) -> Dict[str, Any]:
+        """Load commands from JSON"""
+        if self.commands_file.exists():
+            with open(self.commands_file, 'r', encoding='utf-8') as f:
+                return json.load(f)
+        return self._default_commands()
+    
+    def _default_settings(self) -> Dict[str, Any]:
+        """Default settings"""
+        return {
+            'LANGUAGE': 'en-US',
+            'WAKE_WORD': 'mel',
+            'VOICE_RATE': 180,
+            'VOICE_VOLUME': 0.9,
+            'CONFIDENCE_THRESHOLD': 0.7,
+            'TIMEOUT_LISTENING': 5,
+            'MAX_RETRIES': 3,
+            'SAFE_MODE': True,
+            'favorite_apps': ['chrome', 'spotify', 'vscode'],
+            'important_folders': {
+                'documents': '~/Documents',
+                'downloads': '~/Downloads',
+                'projects': '~/Projects'
+            }
+        }
+    
+    def _default_commands(self) -> Dict[str, Any]:
+        """Default commands"""
+        return {
+            'custom_commands': {
+                'hello mel': {
+                    'responses': ['Hello! How can I help?'],
+                    'action': 'greeting'
+                }
+            },
+            'aliases': {},
+            'shortcuts': {
+                'copy': 'ctrl+c',
+                'paste': 'ctrl+v'
+            }
+        }
+    
+    def save_settings(self):
+        """Save settings to file"""
+        self.config_dir.mkdir(exist_ok=True)
+        with open(self.settings_file, 'w', encoding='utf-8') as f:
+            yaml.dump(self.settings, f, default_flow_style=False)
+    
+    def save_commands(self):
+        """Save commands to file"""
+        self.config_dir.mkdir(exist_ok=True)
+        with open(self.commands_file, 'w', encoding='utf-8') as f:
+            json.dump(self.commands, f, indent=2, ensure_ascii=False)
+    
+    def get(self, key: str, default=None):
+        """Get setting value"""
+        return self.settings.get(key, default)
+    
+    def set(self, key: str, value: Any):
+        """Set setting value"""
+        self.settings[key] = value
+        self.save_settings()
+    
+    def add_command(self, trigger: str, response: str, action: str = 'custom'):
+        """Add custom command"""
+        self.commands['custom_commands'][trigger] = {
+            'responses': [response],
+            'action': action
+        }
+        self.save_commands()
+
+# Usage example
+if __name__ == "__main__":
+    config = MelConfig()
+    print("🔧 MEL Configuration Manager")
+    print(f"Language: {config.get('LANGUAGE')}")
+    print(f"Wake word: {config.get('WAKE_WORD')}")
+    print(f"Commands loaded: {len(config.commands['custom_commands'])}")
+```
+
+## 🚀 Quick Setup Commands
+
+```bash
+# 1. Clone and setup
+git clone https://github.com/your-username/mel-vocal-ai.git
+cd mel-vocal-ai
+
+# 2. Run installation script
+chmod +x install_mel.sh
+./install_mel.sh
+
+# 3. Test installation
+python test_mel.py
+
+# 4. Start MEL
+python startup.py
+```
+
+---
+
+> **🎉 Congratulations!** Your MEL vocal AI assistant is now configured and ready to revolutionize your computing experience! 🚀✨
+
+**Ready to talk to your computer? Say "Hello MEL!" 🎤**
